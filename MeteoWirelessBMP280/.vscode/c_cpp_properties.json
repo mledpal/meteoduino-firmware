@@ -1,0 +1,23 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",                
+                "D:\\Programacion\\Arduino\\libraries\\**",
+                "C:\\Program Files\\WindowsApps\\ArduinoLLC.ArduinoIDE_1.8.57.0_x86__mdqgnx93n4wtt\\libraries\\**"  
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "windowsSdkVersion": "10.0.22621.0",
+            "compilerPath": "cl.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-msvc-x64"
+        }
+    ],
+    "version": 4
+}
