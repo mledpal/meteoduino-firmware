@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * API para devolver los datos meteorológicos en formato JSON
+ * con peticiones POST
+ * Autor : Miguel Ledesma Palacios
+ */
+
     switch($_SERVER['REQUEST_METHOD']) {
     case 'POST':                        
         devolverDatos($_POST['modo']);
@@ -15,12 +21,17 @@
     }
 
 
-
+/**
+ * Funcion que devuelve los datos de la base de datos en formato JSON
+ * @param string $modo : Modo de devolucion de datos
+ * @return array $datos : Array con los datos de la base de datos
+ *  
+ */
 function devolverDatos($modo) {
-
     
-    include_once 'funcs/conexion.php';
-    include_once 'funcs/sqlfuncs.php';
+    include_once 'funcs/conexion.php'; // Datos de la conexion a MySQL
+    include_once 'funcs/sqlfuncs.php'; // Fichero de funcionalidades. *** En progreso ***
+
     $datos = array();    
     $modo = $_POST['modo'];
     
