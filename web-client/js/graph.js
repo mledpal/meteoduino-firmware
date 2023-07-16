@@ -224,3 +224,67 @@ export function graphOtros(fecha, maxp, minp, medp, maxh, minh, medh )  {
 }
 
 
+export function graphLastDays(fecha, t1, t2, p, h)  {
+  
+  const ctx = document.getElementById('grafico');
+  
+  new Chart(ctx, {    
+        data: {
+          labels: fecha,            
+          datasets: [{
+            label: 'T1',
+            type: 'line',
+            data: t1,
+            borderWidth: 1,    
+            hidden: false,            
+            yAxisID: 'y-temperatura'
+          },
+          {
+            label: 'T2',
+            type: 'line',
+            data: t2,
+            borderWidth: 1,
+            yAxisID: 'y-temperatura',
+            hidden: true
+          },
+          {
+            type: 'line',
+            label: 'Presión',
+            data: p,
+            borderWidth: 1,
+            yAxisID: 'y-presion',
+            hidden: true
+          },{
+            label: 'Humedad',
+            type: 'line',
+            data: h,
+            borderWidth: 1,    
+            hidden: true,            
+            yAxisID: 'y-humedad'
+          }]
+        },
+        options: {          
+          pointStyle : false,
+          scales: {      
+              'y-temperatura': {                        
+                type: 'linear',      
+                position: 'left'      
+              },
+              'y-humedad': {
+                label: 'Humedad',
+                min: 0,
+                max: 100,
+                type: 'linear',
+                position: 'right',
+                step: 20
+              }, 
+              'y-presion': {
+                label: 'Presión',
+                min: 960,
+                max: 1050,
+                position: 'right'            
+              }          
+          } 
+        }
+      });
+}

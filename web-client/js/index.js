@@ -1,6 +1,6 @@
 "use strict";
 
-import { graph24, graphTemperaturas, graphOtros } from './graph.js';
+import { graph24, graphTemperaturas, graphOtros, graphLastDays } from './graph.js';
 
 const url = 'http://ledemar.ddns.net/chart/api.php';
 
@@ -72,6 +72,9 @@ async function drawGraph(modo) {
     case 'otros':          
       graphOtros(datos[0], datos[1], datos[2], datos[3], datos[4], datos[5], datos[6]);
       break;
+
+    case 'last14days':      
+      graphLastDays(datos[0].reverse(), datos[1].reverse(), datos[2].reverse(), datos[3].reverse(), datos[4].reverse());
   }
   
   

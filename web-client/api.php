@@ -1,11 +1,5 @@
 <?php
 
-/**
- * API para devolver los datos meteorológicos en formato JSON
- * con peticiones POST
- * Autor : Miguel Ledesma Palacios
- */
-
     switch($_SERVER['REQUEST_METHOD']) {
     case 'POST':                        
         devolverDatos($_POST['modo']);
@@ -21,17 +15,12 @@
     }
 
 
-/**
- * Funcion que devuelve los datos de la base de datos en formato JSON
- * @param string $modo : Modo de devolucion de datos
- * @return array $datos : Array con los datos de la base de datos
- *  
- */
-function devolverDatos($modo) {
-    
-    include_once 'funcs/conexion.php'; // Datos de la conexion a MySQL
-    include_once 'funcs/sqlfuncs.php'; // Fichero de funcionalidades. *** En progreso ***
 
+function devolverDatos($modo) {
+
+    
+    include_once 'funcs/conexion.php';
+    include_once 'funcs/sqlfuncs.php';
     $datos = array();    
     $modo = $_POST['modo'];
     
@@ -144,6 +133,33 @@ function devolverDatos($modo) {
 
             array_push($datos, $fecha, $maxP, $minP, $medP, $maxH, $minH, $medH);
 
+            break;
+
+
+        case 'last14days':
+            $fecha = array();
+            $sensor1 = array();
+            $sensor2 = array();
+            $presion = array();
+            $humedad = array();
+            $query = "SELECT fecha, sensor1, sensor2, p_local, humedad FROM datos 
+                where DATE_FORMAT(hora, '%k:%i') = ( select DATE_FORMAT(hora, '%k:%i') as hora from datos ORDER BY id DESC limit 1) 
+                ORDER BY id DESC
+                LIMIT 14;";
+
+            $sql = $conn->prepare($query);
+            $sql->execute();
+
+            while($row = $sql->fetch()) {
+                array_push($fecha , (string) $row['fecha']);
+                array_push($sensor1 , (float) $row['sensor1']);
+                array_push($sensor2 , (float) $row['sensor2']);
+                array_push($presion , (float) $row['p_mar']);
+                array_push($humedad , (float) $row['humedad']);          
+            } 
+
+            array_push($datos, $fecha, $sensor1, $sensor2, $presion, $humedad);
+            
             break;
 
         default:
