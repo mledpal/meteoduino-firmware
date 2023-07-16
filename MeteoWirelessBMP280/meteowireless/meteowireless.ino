@@ -34,8 +34,10 @@ const char* password = STAPSK;
 
 
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP);
-const long utcOffsetInSeconds = 3600;
+NTPClient timeClient(ntpUDP, "hora.roa.es", 3600); // Servidor NTP España
+int timeZone = 1; // Zona horaria de España
+
+
 
 ESP8266WebServer server(80);
 
@@ -55,6 +57,29 @@ const int led = 13;
 float datos[7];
 
 float temp1, temp2, sensacionTermica, humedad, presion, nivelMar, altura;
+
+
+// Funcion para distinguir en que horario nos encontramos (Verano/Invierno)
+
+bool isSummerTime() {
+  // Obtiene la fecha actual en formato "AAAAMMDD" (Año, Mes, Día)
+  String formattedDate = timeClient.getFormattedTime();
+  int year = formattedDate.substring(0, 4).toInt();
+  int month = formattedDate.substring(5, 7).toInt();
+  int day = formattedDate.substring(8, 10).toInt();
+
+  // Comprueba si la fecha actual está dentro del rango del horario de verano en España
+  if ((month > 3 && month < 10) || (month == 3 && day >= 25) || (month == 10 && day <= 28)) {
+    return true; // Está en horario de verano (UTC +2)
+  } else {
+    return false; // Está en horario estándar (UTC +1)
+  }
+}
+
+
+
+
+
 
 //////////// SETUP ////////////
 
@@ -93,9 +118,8 @@ void setup() {
     Serial.print(".");
   }
 
-  NTPClient timeClient(ntpUDP, "hora.roa.es", utcOffsetInSeconds);
   timeClient.begin();
-  timeClient.setTimeOffset(utcOffsetInSeconds);
+  timeClient.setTimeOffset(timeZone * 3600);
 
   Serial.println("");
   Serial.print("Connected to ");
@@ -188,8 +212,12 @@ void setup() {
 void loop(void) {
   server.handleClient();
   MDNS.update();
-  
-  timeClient.setTimeOffset(utcOffsetInSeconds);
+
+  // Ajusta al horario de verano
+  if(isSummerTime) {
+    timeZone = 2;
+  }
+  timeClient.setTimeOffset(timeZone * 3600);
   timeClient.update();
 
   int minutos = timeClient.getMinutes();
@@ -212,7 +240,7 @@ void handleRoot() {
 
   digitalWrite(led, 1);
 
-  timeClient.setTimeOffset(utcOffsetInSeconds);
+  
   timeClient.update();
   
   unsigned long epochTime = timeClient.getEpochTime();  
@@ -305,7 +333,7 @@ void handleNotFound() {
 
 void APIJSON() {
   char json_string[256];
-  timeClient.setTimeOffset(utcOffsetInSeconds);
+  
   timeClient.update();
   unsigned long epochTime = timeClient.getEpochTime();    
   String hora = String(timeClient.getFormattedTime());
@@ -334,7 +362,7 @@ void APIJSON() {
 }
 
 void discord() {
-  timeClient.setTimeOffset(utcOffsetInSeconds);
+  
   timeClient.update();
 
   String hora = String(timeClient.getFormattedTime());
