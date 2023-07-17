@@ -97,6 +97,8 @@ public class MeteoDuinoReader {
 
     static void leerDatos() throws ParserConfigurationException, IOException, SAXException, ParseException  {
         
+        String humedadRAW=""; // Se añade esta variable para limpiar de espacios el valor de humedad
+        
         InputSource archivo = new InputSource();
         archivo.setCharacterStream(new StringReader(cadenaXML));
 
@@ -145,7 +147,8 @@ public class MeteoDuinoReader {
                 presionMar = alturaElemento.item(0).getChildNodes().item(3).getTextContent();
 
                 NodeList humedadElemento = primerElemento.getElementsByTagName("humedad");
-                humedad = humedadElemento.item(0).getTextContent();
+                humedadRAW = humedadElemento.item(0).getTextContent();
+                humedad = humedadRAW.replace(" ", "");
 
             }
         }
@@ -180,7 +183,7 @@ public class MeteoDuinoReader {
 
     protected static String leeIPMeteo() throws FileNotFoundException {
         
-        String rutaConfig = "etc/meteo.conf";
+        String rutaConfig = "/etc/meteo.conf";
         
         
         String regex="[\\d]+.[\\d]+.[\\d]+.[\\d]+";
