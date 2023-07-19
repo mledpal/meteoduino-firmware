@@ -34,7 +34,7 @@ const char* password = STAPSK;
 
 
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "hora.roa.es", 3600); // Servidor NTP España
+NTPClient timeClient(ntpUDP, "0.es.pool.ntp.org", 3600); // Servidor NTP España
 int timeZone = 1; // Zona horaria de España
 
 
@@ -217,8 +217,8 @@ void loop(void) {
   if(isSummerTime) {
     timeZone = 2;
   }
-  timeClient.setTimeOffset(timeZone * 3600);
-  timeClient.update();
+  //timeClient.setTimeOffset(timeZone * 3600);
+  //timeClient.update();
 
   int minutos = timeClient.getMinutes();
   int seg = timeClient.getSeconds();
@@ -226,6 +226,7 @@ void loop(void) {
   if ((minutos==0 || minutos==15 || minutos==30 || minutos==45) && seg==0) {
     discord();
   }
+
 }
 
 
@@ -237,12 +238,8 @@ void jsonURL() {
 }
 
 void handleRoot() {
-
+  
   digitalWrite(led, 1);
-
-  
-  timeClient.update();
-  
   unsigned long epochTime = timeClient.getEpochTime();  
   String hora = String(timeClient.getFormattedTime());  
   
@@ -274,8 +271,6 @@ void handleRoot() {
 
 
 void handleTemp() { // Ruta /meteo
-
-  //timeClient.update();
 
   float humi = dht.readHumidity();
   float temp = dht.readTemperature();
@@ -333,8 +328,7 @@ void handleNotFound() {
 
 void APIJSON() {
   char json_string[256];
-  
-  timeClient.update();
+    
   unsigned long epochTime = timeClient.getEpochTime();    
   String hora = String(timeClient.getFormattedTime());
   
@@ -363,8 +357,6 @@ void APIJSON() {
 
 void discord() {
   
-  timeClient.update();
-
   String hora = String(timeClient.getFormattedTime());
 
   leerDatos();
@@ -393,6 +385,10 @@ void send_discord(String mensaje) {
 }
 
 void leerDatos() {
+
+  timeClient.setTimeOffset(timeZone * 3600);  
+  timeClient.update();
+  
 
   temp2 = dht.readTemperature();
   humedad = dht.readHumidity();
