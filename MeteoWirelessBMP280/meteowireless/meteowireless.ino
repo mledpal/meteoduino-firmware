@@ -1,33 +1,34 @@
 #include <NTPClient.h>
 #include <WiFiUdp.h>
-
-
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266HTTPClient.h>
 #include <ESP8266mDNS.h>
 #include <WiFiClientSecure.h>
-
-#include <DHT.h>
-#include <SPI.h>
-
-// Driver sensor de presión
-#include <Adafruit_BMP280.h> // Nuevo HW-611 // BMP280
-
-
-// Librería ArduinoJSON
-#include <ArduinoJson.h>
-StaticJsonDocument<200> doc;
-
-
+#include <Adafruit_BMP280.h> // Nuevo HW-611 // BMP280 // Sensor de Presión
+#include "SHT2x.h" // Nuevos sensores de Humedad y Presión GY-21
+#include <ArduinoJson.h> // Librería para JSON
 #include <Wire.h>
-
 #include <Discord_WebHook.h>
 
-#ifndef STASSID
+// #include <DHT.h> // DEPRECATED // SENSOR DE HUMEDAD Y TEMPERATURA (Carcasa azul)
+
+
+#ifndef STASSID // Conexión a la WIFI
 #define STASSID "IXIUM"
 #define STAPSK  "Mavic2Z00m"
 #endif
+
+
+uint32_t start;
+uint32_t stop;
+SHT2x sht;
+// SENSOR DE HUMEDAD Y TEMPERATURA 
+
+StaticJsonDocument<200> doc;
+
+
+
 
 const char* ssid = STASSID;
 const char* password = STAPSK;
@@ -78,13 +79,11 @@ bool isSummerTime() {
 
 
 
-
-
-
 //////////// SETUP ////////////
 
 void setup() {
 
+  Serial.begin(9600);
 
   // Configuracion del sensor de Presión y Temperatura BMP280
   if(bmp.begin(0x76)){
@@ -101,8 +100,12 @@ void setup() {
   bmp_temp->printSensorDetails();
 
   // SENSOR DE HUMEDAD
-  dht.begin();
-  Serial.begin(9600);
+  //dht.begin(); // DEPRECATED
+
+// NUEVO SENSOR DE TEMPERATURA SHT20
+  sht.begin();
+  uint8_t stat = sht.getStatus();
+  Serial.print(stat, HEX);
 
   pinMode(led, OUTPUT);
   digitalWrite(led, 0);
@@ -118,9 +121,11 @@ void setup() {
     Serial.print(".");
   }
 
+  // AJUSTE HORARIO
   timeClient.begin();
   timeClient.setTimeOffset(timeZone * 3600);
 
+  // PRESENTACIÓN EN CONSOLA AVISANDO DE LA CONEXIÓN A LA RED WIFI
   Serial.println("");
   Serial.print("Connected to ");
   Serial.println(ssid);
@@ -131,6 +136,8 @@ void setup() {
     Serial.println("MDNS responder started");
   }
 
+
+  // Manejadores de Vínculos (rutas)
   server.on("/", handleRoot);
 
   server.on("/meteo.html", HTTP_GET, handleTemp);
@@ -201,6 +208,9 @@ void setup() {
   // Hook examples
   /////////////////////////////////////////////////////////
 
+
+
+
   server.begin();
   Serial.println("HTTP server started");
 
@@ -247,7 +257,7 @@ void handleRoot() {
 
   String xml = "<?xml version='1.0' encoding='UTF-8'?>\r\n";
   
-  xml += "<meteorologica id='1'>\r\n";
+  xml += "<meteorologica id='2'>\r\n";
   xml += "\t<fecha>" + String(epochTime) + "</fecha>\r\n";
   xml += "\t<hora>" + hora + "</hora>\r\n";
   xml += "\t<temperaturas media='" + String((temp1 + temp2) / 2) + "' sensacion='" + String(sensacionTermica, 2) + "' unidad ='ºC' >\r\n";
@@ -271,10 +281,6 @@ void handleRoot() {
 
 
 void handleTemp() { // Ruta /meteo
-
-  float humi = dht.readHumidity();
-  float temp = dht.readTemperature();
-  float hic = dht.computeHeatIndex(temp, humi, false);
 
   leerDatos();
   
@@ -388,11 +394,18 @@ void leerDatos() {
 
   timeClient.setTimeOffset(timeZone * 3600);  
   timeClient.update();
-  
 
-  temp2 = dht.readTemperature();
-  humedad = dht.readHumidity();
-  sensacionTermica = dht.computeHeatIndex(dht.readTemperature(), dht.readHumidity(), false);
+
+  // NUEVO SENSOR DE TEMPERATURA  
+  sht.read();
+  temp2 = sht.getTemperature();
+  humedad = sht.getHumidity();
+  sensacionTermica = -2.653 + 0.994 * temp2 + 0.0153 * humedad - 0.0014 * temp2 * humedad;
+
+  
+  // temp2 = dht.readTemperature(); // DEPRECATED
+  //humedad = dht.readHumidity(); // DEPRECATED
+  //sensacionTermica = dht.computeHeatIndex(dht.readTemperature(), dht.readHumidity(), false); // DEPRECATED
 
   temp1 = bmp.readTemperature();
   presion = bmp.readPressure()/100;
