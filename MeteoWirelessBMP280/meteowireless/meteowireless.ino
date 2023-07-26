@@ -15,8 +15,8 @@
 
 
 #ifndef STASSID // Conexión a la WIFI
-#define STASSID "IXIUM"
-#define STAPSK  "Mavic2Z00m"
+#define STASSID "TU_ESSID"
+#define STAPSK  "Tu_PASS"
 #endif
 
 
@@ -49,9 +49,9 @@ Adafruit_Sensor *bmp_pressure = bmp.getPressureSensor();
 
 #define ALTITUDE  416.0 // metros 
 
-uint8_t DHTPin = 2;
-#define DHTTYPE DHT11
-DHT dht(DHTPin, DHTTYPE);
+//uint8_t DHTPin = 2; // DEPRECATED
+//#define DHTTYPE DHT11
+//DHT dht(DHTPin, DHTTYPE);
 
 const int led = 13;
 
@@ -377,7 +377,6 @@ void discord() {
   
   Serial.println("Send data to Discord: OK");
   server.send(200, "text/plain", "OK");
-
 }
 
 
@@ -400,7 +399,19 @@ void leerDatos() {
   sht.read();
   temp2 = sht.getTemperature();
   humedad = sht.getHumidity();
-  sensacionTermica = -2.653 + 0.994 * temp2 + 0.0153 * humedad - 0.0014 * temp2 * humedad;
+  //sensacionTermica = -2.653 + 0.994 * temp2 + 0.0153 * humedad - 0.0014 * temp2 * humedad;
+  
+  
+  float t = 7.5 * temp2 / (237.7 + temp2);
+  float et = pow(10,t); 
+  float e = 6.112 * et * (humedad / 100);
+  sensacionTermica = temp2 + (5/9)*(e-10);
+  
+  if(sensacionTermica < temp2) {
+    sensacionTermica = temp2;
+  } 
+  
+  
 
   
   // temp2 = dht.readTemperature(); // DEPRECATED
