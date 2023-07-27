@@ -14,9 +14,9 @@
 // #include <DHT.h> // DEPRECATED // SENSOR DE HUMEDAD Y TEMPERATURA (Carcasa azul)
 
 
-#ifndef STASSID // Conexión a la WIFI
-#define STASSID "TU_ESSID"
-#define STAPSK  "Tu_PASS"
+#ifndef STASSID                     // Conexión a la WIFI
+#define STASSID "meteoduino"        // ESSID de tu WIFI
+#define STAPSK  "LTZ3ZNKF2YYYZN"    // KEY de tu WIFI
 #endif
 
 
@@ -24,11 +24,6 @@ uint32_t start;
 uint32_t stop;
 SHT2x sht;
 // SENSOR DE HUMEDAD Y TEMPERATURA 
-
-StaticJsonDocument<200> doc;
-
-
-
 
 const char* ssid = STASSID;
 const char* password = STAPSK;
@@ -137,16 +132,16 @@ void setup() {
   }
 
 
-  // Manejadores de Vínculos (rutas)
+  /////////////
+  // ROUTING //
+  /////////////
   server.on("/", handleRoot);
-
   server.on("/meteo.html", HTTP_GET, handleTemp);
-
   server.on("/datos.json", HTTP_GET, APIJSON);
-
   server.on("/discord", HTTP_GET, discord);
-
   server.onNotFound(handleNotFound);
+
+
 
   /////////////////////////////////////////////////////////
   // Hook examples
@@ -279,7 +274,9 @@ void handleRoot() {
 }
 
 
-
+////////////////////////////////////////////////
+// Función que manda los datos en formato XML //
+////////////////////////////////////////////////
 void handleTemp() { // Ruta /meteo
 
   leerDatos();
@@ -332,35 +329,43 @@ void handleNotFound() {
   digitalWrite(led, 0);
 }
 
+
+/////////////////////////////////////////////////
+// Función que manda los datos en formato JSON //
+/////////////////////////////////////////////////
 void APIJSON() {
+
+  leerDatos();
+
+  StaticJsonDocument<200> doc;
   char json_string[256];
-    
+  
   unsigned long epochTime = timeClient.getEpochTime();    
   String hora = String(timeClient.getFormattedTime());
   
-  leerDatos();  
-
-  doc["id"] = "Meteo - 2";
-  
-  JsonArray fecha = doc.createNestedArray("fecha");
-  fecha.add(epochTime);
-  fecha.add(hora);
+  doc["id"] = "1";
+  doc["epochTime"] = epochTime;
+  doc["hora"] = hora;  
   
   JsonArray temps = doc.createNestedArray("temp");
-  temps.add(String(temp1, 2));
-  temps.add(String(temp2, 2));
-  temps.add(String(sensacionTermica, 2));
-
-  JsonArray presion = doc.createNestedArray("presion");
-  presion.add(String(presion, 0));
-  presion.add(String(altura, 2));
+  doc["temp"][0] = temp1;
+  doc["temp"][1] = temp2;
+  doc["temp"][2] = sensacionTermica;
   
-  doc["humedad"] = String(humedad, 0);
+  JsonArray pressure = doc.createNestedArray("presion");
+  doc["presion"][0] = nivelMar;
+  doc["presion"][1] = altura;
   
+  doc["humedad"] = humedad;
+      
   serializeJson(doc, json_string);
-  server.send(200, "text/plain", json_string);
+  server.send(200, "application/json", json_string);
 }
 
+
+/////////////////////////////////////////////////////
+// Función que manda los datos al canal de Discord //
+/////////////////////////////////////////////////////
 void discord() {
   
   String hora = String(timeClient.getFormattedTime());
@@ -379,8 +384,6 @@ void discord() {
   server.send(200, "text/plain", "OK");
 }
 
-
-
 void send_discord(String mensaje) {
   const String discord_webhook = "https://discord.com/api/webhooks/995371444961804490/kZZOPXQXdub5lNdA4j4LUv7xgWDGJtpZNqxwonphQb2yjIWBNf55TKA5hCOHCaz8sC8l";
   Discord_Webhook discord;
@@ -389,6 +392,10 @@ void send_discord(String mensaje) {
   //delay(500);
 }
 
+
+///////////////////////////////////////////////
+// Función que lee los datos de los sensores //
+///////////////////////////////////////////////
 void leerDatos() {
 
   timeClient.setTimeOffset(timeZone * 3600);  
@@ -399,24 +406,8 @@ void leerDatos() {
   sht.read();
   temp2 = sht.getTemperature();
   humedad = sht.getHumidity();
-  //sensacionTermica = -2.653 + 0.994 * temp2 + 0.0153 * humedad - 0.0014 * temp2 * humedad;
   
-  
-  float t = 7.5 * temp2 / (237.7 + temp2);
-  float et = pow(10,t); 
-  float e = 6.112 * et * (humedad / 100);
-  sensacionTermica = temp2 + (5/9)*(e-10);
-  
-  if(sensacionTermica < temp2) {
-    sensacionTermica = temp2;
-  } 
-  
-  
-
-  
-  // temp2 = dht.readTemperature(); // DEPRECATED
-  //humedad = dht.readHumidity(); // DEPRECATED
-  //sensacionTermica = dht.computeHeatIndex(dht.readTemperature(), dht.readHumidity(), false); // DEPRECATED
+  sensacionTermica = computeHeatIndex(temp2, humedad, false);
 
   temp1 = bmp.readTemperature();
   presion = bmp.readPressure()/100;
@@ -425,3 +416,44 @@ void leerDatos() {
   altura = bmp.readAltitude(1013.25);
 
 }
+
+//////////////////////////////////////////////
+// Función que calcula la Sensación térmica //
+//////////////////////////////////////////////
+float computeHeatIndex(float temperature, float percentHumidity, bool isFahrenheit) {
+  float hi;
+
+  if (!isFahrenheit)
+    temperature = convertCtoF(temperature);
+
+  hi = 0.5 * (temperature + 61.0 + ((temperature - 68.0) * 1.2) +
+              (percentHumidity * 0.094));
+
+  if (hi > 79) {
+    hi = -42.379 + 2.04901523 * temperature + 10.14333127 * percentHumidity +
+         -0.22475541 * temperature * percentHumidity +
+         -0.00683783 * pow(temperature, 2) +
+         -0.05481717 * pow(percentHumidity, 2) +
+         0.00122874 * pow(temperature, 2) * percentHumidity +
+         0.00085282 * temperature * pow(percentHumidity, 2) +
+         -0.00000199 * pow(temperature, 2) * pow(percentHumidity, 2);
+
+    if ((percentHumidity < 13) && (temperature >= 80.0) &&
+        (temperature <= 112.0))
+      hi -= ((13.0 - percentHumidity) * 0.25) *
+            sqrt((17.0 - abs(temperature - 95.0)) * 0.05882);
+
+    else if ((percentHumidity > 85.0) && (temperature >= 80.0) &&
+             (temperature <= 87.0))
+      hi += ((percentHumidity - 85.0) * 0.1) * ((87.0 - temperature) * 0.2);
+  }
+
+  return isFahrenheit ? hi : convertFtoC(hi);
+}
+
+
+/////////////////////////////////////////
+// Funciones para convertir de ºC a ºF //
+/////////////////////////////////////////
+float convertCtoF(float c) { return c * 1.8 + 32; }
+float convertFtoC(float f) { return (f - 32) * 0.55555; }
