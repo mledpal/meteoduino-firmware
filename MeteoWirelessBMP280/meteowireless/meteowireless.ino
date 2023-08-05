@@ -20,6 +20,9 @@
 #endif
 
 
+const int METEO_ID = 2;
+
+
 uint32_t start;
 uint32_t stop;
 SHT2x sht;
@@ -33,6 +36,8 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "0.es.pool.ntp.org", 3600); // Servidor NTP España
 int timeZone = 1; // Zona horaria de España
 
+unsigned long epochTime = timeClient.getEpochTime();    
+String hora = String(timeClient.getFormattedTime());
 
 
 ESP8266WebServer server(80);
@@ -53,6 +58,13 @@ const int led = 13;
 float datos[7];
 
 float temp1, temp2, sensacionTermica, humedad, presion, nivelMar, altura;
+
+// Para el envío a Discord
+const String discord_webhook = "https://discord.com/api/webhooks/995371444961804490/kZZOPXQXdub5lNdA4j4LUv7xgWDGJtpZNqxwonphQb2yjIWBNf55TKA5hCOHCaz8sC8l";
+Discord_Webhook discord;
+String mensaje; 
+
+//String hora;
 
 
 // Funcion para distinguir en que horario nos encontramos (Verano/Invierno)
@@ -79,6 +91,13 @@ bool isSummerTime() {
 void setup() {
 
   Serial.begin(9600);
+  
+  // Ajusta al horario de verano
+  if(isSummerTime) {
+    timeZone = 2;
+  }
+  
+  actualizarNTP();
 
   // Configuracion del sensor de Presión y Temperatura BMP280
   if(bmp.begin(0x76)){
@@ -138,7 +157,7 @@ void setup() {
   server.on("/", handleRoot);
   server.on("/meteo.html", HTTP_GET, handleTemp);
   server.on("/datos.json", HTTP_GET, APIJSON);
-  server.on("/discord", HTTP_GET, discord);
+  server.on("/discord", HTTP_GET, send_discord);
   server.onNotFound(handleNotFound);
 
 
@@ -218,18 +237,11 @@ void loop(void) {
   server.handleClient();
   MDNS.update();
 
-  // Ajusta al horario de verano
-  if(isSummerTime) {
-    timeZone = 2;
-  }
-  //timeClient.setTimeOffset(timeZone * 3600);
-  //timeClient.update();
-
   int minutos = timeClient.getMinutes();
   int seg = timeClient.getSeconds();
 
   if ((minutos==0 || minutos==15 || minutos==30 || minutos==45) && seg==0) {
-    discord();
+    send_discord();
   }
 
 }
@@ -245,14 +257,13 @@ void jsonURL() {
 void handleRoot() {
   
   digitalWrite(led, 1);
-  unsigned long epochTime = timeClient.getEpochTime();  
-  String hora = String(timeClient.getFormattedTime());  
-  
-  leerDatos();
 
+  leerDatos();
+  send_discord();
+ 
   String xml = "<?xml version='1.0' encoding='UTF-8'?>\r\n";
   
-  xml += "<meteorologica id='2'>\r\n";
+  xml += "<meteorologica id='" +String(METEO_ID) + "'>\r\n";
   xml += "\t<fecha>" + String(epochTime) + "</fecha>\r\n";
   xml += "\t<hora>" + hora + "</hora>\r\n";
   xml += "\t<temperaturas media='" + String((temp1 + temp2) / 2) + "' sensacion='" + String(sensacionTermica, 2) + "' unidad ='ºC' >\r\n";
@@ -337,27 +348,29 @@ void APIJSON() {
 
   leerDatos();
 
-  StaticJsonDocument<200> doc;
-  char json_string[256];
+  StaticJsonDocument<512> doc;
+  char json_string[512];
   
-  unsigned long epochTime = timeClient.getEpochTime();    
-  String hora = String(timeClient.getFormattedTime());
+  doc["id"] = METEO_ID;
   
-  doc["id"] = "1";
-  doc["epochTime"] = epochTime;
-  doc["hora"] = hora;  
-  
+  JsonArray datetime = doc.createNestedArray("datetime");
   JsonArray temps = doc.createNestedArray("temp");
+  JsonArray pressure = doc.createNestedArray("pressure");
+  JsonArray humidity = doc.createNestedArray("humidity");
+  
+  doc["datetime"][0] = epochTime;
+  doc["datetime"][1] = hora;  
+    
   doc["temp"][0] = temp1;
   doc["temp"][1] = temp2;
   doc["temp"][2] = sensacionTermica;
   
-  JsonArray pressure = doc.createNestedArray("presion");
-  doc["presion"][0] = nivelMar;
-  doc["presion"][1] = altura;
+  doc["pressure"][0] = nivelMar;
+  doc["pressure"][1] = presion;
+  doc["pressure"][2] = altura;
   
-  doc["humedad"] = humedad;
-      
+  doc["humidity"][0] = humedad;
+  
   serializeJson(doc, json_string);
   server.send(200, "application/json", json_string);
 }
@@ -366,31 +379,27 @@ void APIJSON() {
 /////////////////////////////////////////////////////
 // Función que manda los datos al canal de Discord //
 /////////////////////////////////////////////////////
-void discord() {
+void send_discord() {
   
-  String hora = String(timeClient.getFormattedTime());
+  hora = String(timeClient.getFormattedTime());
 
-  leerDatos();
+  //leerDatos();
   
-  String mensaje = "[ Hora: "+ hora +" ] ";
+  mensaje = "[ Hora: "+ hora +" ] ";
   mensaje +="[ T1: "+String(temp1, 2)+" ºC | T2: " + String(temp2, 2)+ " ºC | ST : " + String(sensacionTermica, 2)+" ºC | TM: " + String(((temp1 + temp2) / 2), 2) + " ºC ] ";
   mensaje +=" [ H: " + String(humedad, 0) + "% ]";
   mensaje +=" [ P: " + String(presion, 0) + " Pa ] ";
   mensaje +=" [ A: " + String(altura, 2) + " m ] ";
-  
-  send_discord(mensaje);
-  
-  Serial.println("Send data to Discord: OK");
-  server.send(200, "text/plain", "OK");
-}
 
-void send_discord(String mensaje) {
-  const String discord_webhook = "https://discord.com/api/webhooks/995371444961804490/kZZOPXQXdub5lNdA4j4LUv7xgWDGJtpZNqxwonphQb2yjIWBNf55TKA5hCOHCaz8sC8l";
-  Discord_Webhook discord;
+  Serial.println(mensaje);
+  
   discord.begin(discord_webhook);
   discord.send(mensaje);
-  //delay(500);
+  
+  Serial.println("Send data to Discord: OK");
+  //server.send(200, "text/plain", "OK");
 }
+
 
 
 ///////////////////////////////////////////////
@@ -398,9 +407,7 @@ void send_discord(String mensaje) {
 ///////////////////////////////////////////////
 void leerDatos() {
 
-  timeClient.setTimeOffset(timeZone * 3600);  
-  timeClient.update();
-
+  actualizarNTP(); // Actualiza datos del servidor NTP y los datos de fecha y hora
 
   // NUEVO SENSOR DE TEMPERATURA  
   sht.read();
@@ -457,3 +464,19 @@ float computeHeatIndex(float temperature, float percentHumidity, bool isFahrenhe
 /////////////////////////////////////////
 float convertCtoF(float c) { return c * 1.8 + 32; }
 float convertFtoC(float f) { return (f - 32) * 0.55555; }
+
+
+///////////////////////////////////////////
+// Funcion para actualizar la fecha/hora //
+///////////////////////////////////////////
+
+void actualizarNTP() {
+
+  timeClient.setTimeOffset(timeZone * 3600); 
+  timeClient.update();
+  
+  epochTime = timeClient.getEpochTime();    
+  hora = String(timeClient.getFormattedTime());  
+  
+  Serial.println("Cliente NTP actualizado");
+}
