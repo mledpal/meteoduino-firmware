@@ -20,7 +20,7 @@
 #endif
 
 
-const int METEO_ID = 2;
+const int METEO_ID = 1;
 
 
 uint32_t start;
@@ -67,43 +67,20 @@ String mensaje;
 //String hora;
 
 
-// Funcion para distinguir en que horario nos encontramos (Verano/Invierno)
-
-bool isSummerTime() {
-  // Obtiene la fecha actual en formato "AAAAMMDD" (Año, Mes, Día)
-  String formattedDate = timeClient.getFormattedTime();
-  int year = formattedDate.substring(0, 4).toInt();
-  int month = formattedDate.substring(5, 7).toInt();
-  int day = formattedDate.substring(8, 10).toInt();
-
-  // Comprueba si la fecha actual está dentro del rango del horario de verano en España
-  if ((month > 3 && month < 10) || (month == 3 && day >= 25) || (month == 10 && day <= 28)) {
-    return true; // Está en horario de verano (UTC +2)
-  } else {
-    return false; // Está en horario estándar (UTC +1)
-  }
-}
-
-
-
 //////////// SETUP ////////////
 
 void setup() {
 
   Serial.begin(9600);
   
-  // Ajusta al horario de verano
-  if(isSummerTime) {
-    timeZone = 2;
-  }
-  
+  // Ajusta la fecha y hora
   actualizarNTP();
 
   // Configuracion del sensor de Presión y Temperatura BMP280
   if(bmp.begin(0x76)){
-    Serial.println("BMP280 Iniciado correctamente");
+    Serial.println("Sensor Iniciado correctamente");
   } else {
-    Serial.println("El sensor BMP280 tiene problemas");
+    Serial.println("El sensor de humedad tiene problemas");
   }
 
   bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
@@ -162,9 +139,8 @@ void setup() {
 
 
 
-  /////////////////////////////////////////////////////////
-  // Hook examples
-
+  ///////////////////////////////////////////////////////// HOOKS
+  
   server.addHook([](const String & method, const String & url, WiFiClient * client, ESP8266WebServer::ContentTypeFunction contentType) {
     (void)method;      // GET, PUT, ...
     (void)url;         // example: /root/myfile.html
@@ -243,7 +219,7 @@ void loop(void) {
   if ((minutos==0 || minutos==15 || minutos==30 || minutos==45) && seg==0) {
     send_discord();
   }
-
+  delay(750);
 }
 
 
@@ -386,12 +362,13 @@ void send_discord() {
   //leerDatos();
   
   mensaje = "[ Hora: "+ hora +" ] ";
+  mensaje += " [ ID: " + String(METEO_ID) + " ] ";
   mensaje +="[ T1: "+String(temp1, 2)+" ºC | T2: " + String(temp2, 2)+ " ºC | ST : " + String(sensacionTermica, 2)+" ºC | TM: " + String(((temp1 + temp2) / 2), 2) + " ºC ] ";
   mensaje +=" [ H: " + String(humedad, 0) + "% ]";
   mensaje +=" [ P: " + String(presion, 0) + " Pa ] ";
   mensaje +=" [ A: " + String(altura, 2) + " m ] ";
 
-  Serial.println(mensaje);
+  //Serial.println(mensaje);
   
   discord.begin(discord_webhook);
   discord.send(mensaje);
@@ -413,6 +390,8 @@ void leerDatos() {
   sht.read();
   temp2 = sht.getTemperature();
   humedad = sht.getHumidity();
+
+  if(humedad < 0) humedad = 0;
   
   sensacionTermica = computeHeatIndex(temp2, humedad, false);
 
@@ -472,11 +451,29 @@ float convertFtoC(float f) { return (f - 32) * 0.55555; }
 
 void actualizarNTP() {
 
-  timeClient.setTimeOffset(timeZone * 3600); 
+  timeClient.setTimeOffset(isSummerTime() * 3600); 
   timeClient.update();
   
   epochTime = timeClient.getEpochTime();    
   hora = String(timeClient.getFormattedTime());  
   
   Serial.println("Cliente NTP actualizado");
+}
+
+// Funcion para distinguir en que horario nos encontramos (Verano/Invierno)
+
+int isSummerTime() {
+  // Obtiene la fecha actual en formato "AAAAMMDD" (Año, Mes, Día)
+  
+  String formattedDate = timeClient.getFormattedTime();
+  int year = formattedDate.substring(0, 4).toInt();
+  int month = formattedDate.substring(5, 7).toInt();
+  int day = formattedDate.substring(8, 10).toInt();
+
+  // Comprueba si la fecha actual está dentro del rango del horario de verano en España
+  if ((month > 3 && month < 10) || (month == 3 && day >= 25) || (month == 10 && day <= 28)) {
+    return 2; // Está en horario de verano (UTC +2)
+  } else {
+    return 1; // Está en horario estándar (UTC +1)
+  }
 }
