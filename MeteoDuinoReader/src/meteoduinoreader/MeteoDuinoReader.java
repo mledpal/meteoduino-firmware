@@ -78,7 +78,12 @@ public class MeteoDuinoReader {
     
     
     
-    
+    /**
+     * Método para recoger los datos de la meteorológica
+     * @throws IOException
+     * @throws ConnectException
+     * @throws Exception
+     */
     static void recogerDatosWeb() throws IOException, ConnectException {
         try {
             URL url = new URL(leeIPMeteo());   // URL Conexión a la meteorológica ESP8266
@@ -99,7 +104,13 @@ public class MeteoDuinoReader {
     }
     
     
-
+    /**
+     * Método para leer los datos de la meteorológica
+     * @throws ParserConfigurationException
+     * @throws IOException
+     * @throws SAXException
+     * @throws ParseException
+     */
     static void leerDatos() throws ParserConfigurationException, IOException, SAXException, ParseException  {
         
         //String humedadRAW=""; // Se añade esta variable para limpiar de espacios el valor de humedad
@@ -167,7 +178,9 @@ public class MeteoDuinoReader {
     
     
     
-    
+    /**
+     * Método para mostrar los datos de la meteorológica
+     */
     public void muestraDatos() {
         // Muestra datos en pantalla
          System.out.println("Fecha : " + fecha);
@@ -185,7 +198,11 @@ public class MeteoDuinoReader {
     } 
     
     
-
+    /**
+     * Método para leer la IP de la meteorológica
+     * @return
+     * @throws FileNotFoundException
+     */
     protected static String leeIPMeteo() throws FileNotFoundException {
         
         String rutaConfig = "etc/meteo.conf";
@@ -248,7 +265,9 @@ public class MeteoDuinoReader {
 
 
 
-
+/**
+ * Clase para guardar los datos de la meteorológica 
+ */
 class Conexion {
     
   
@@ -287,6 +306,13 @@ class Conexion {
         
     } // END leeDatos()   
     
+
+    /**
+     * Método para guardar los datos en la base de datos
+     * @param lectura1
+     * @throws SQLException
+     * @throws ClassNotFoundException
+     */
     protected static void guardaDatos(Lectura lectura1) throws SQLException, ClassNotFoundException {
         
         conectar();
