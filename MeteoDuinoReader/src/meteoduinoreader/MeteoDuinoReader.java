@@ -16,6 +16,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.StringReader;
+import java.net.ConnectException;
 import java.net.URL;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -78,18 +79,22 @@ public class MeteoDuinoReader {
     
     
     
-    static void recogerDatosWeb() throws IOException {
-        
-        URL url = new URL(leeIPMeteo());   // URL Conexión a la meteorológica ESP8266
-        String inputText = ""; 
-                                
-        System.out.println(url);
-        
-        BufferedReader in = new BufferedReader(new InputStreamReader(url.openStream()));
-
-        while (null != (inputText = in.readLine())) {     // Guarda la web (XML) en una cadena para manejarla posteriormente
-            cadenaXML = cadenaXML + inputText;
+    static void recogerDatosWeb() throws IOException, ConnectException {
+        try {
+            URL url = new URL(leeIPMeteo());   // URL Conexión a la meteorológica ESP8266
+            String inputText = ""; 
+            
+            BufferedReader in = new BufferedReader(new InputStreamReader(url.openStream()));
+    
+            while (null != (inputText = in.readLine())) {     // Guarda la web (XML) en una cadena para manejarla posteriormente
+                cadenaXML = cadenaXML + inputText;
+            }
+        } catch (ConnectException e) {
+            System.out.println("ERROR DE CONEXIÓN");        
+        } catch (Exception e) {
+            System.out.println(e);
         }
+        
         
     }
     
@@ -183,11 +188,9 @@ public class MeteoDuinoReader {
 
     protected static String leeIPMeteo() throws FileNotFoundException {
         
-        String rutaConfig = "/etc/meteo.conf";
-        
+        String rutaConfig = "etc/meteo.conf";
         
         String regex="[\\d]+.[\\d]+.[\\d]+.[\\d]+";
-               
         
         BufferedReader fConf = null;
         
@@ -217,12 +220,10 @@ public class MeteoDuinoReader {
                     }
 
                     
-                }
-                
+                }                
                 return "http://" + linea;
             }
-            
-            
+
         } catch (FileNotFoundException e) {
             return "FILE_NOT_FOUND";
         } catch (IOException e) {
