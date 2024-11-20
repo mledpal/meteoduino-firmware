@@ -34,7 +34,7 @@ const char* password = STAPSK;
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "0.es.pool.ntp.org", 3600); // Servidor NTP España
-int timeZone = 1; // Zona horaria de España
+int timeZone = 2; // Zona horaria de España
 
 unsigned long epochTime = timeClient.getEpochTime();    
 String hora = String(timeClient.getFormattedTime());
@@ -474,6 +474,6 @@ int isSummerTime() {
   if ((month > 3 && month < 10) || (month == 3 && day >= 25) || (month == 10 && day <= 28)) {
     return 2; // Está en horario de verano (UTC +2)
   } else {
-    return 1; // Está en horario estándar (UTC +1)
+    return 2; // Está en horario estándar (UTC +1)
   }
 }
