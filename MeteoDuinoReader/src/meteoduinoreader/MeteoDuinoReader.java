@@ -28,13 +28,16 @@ import org.xml.sax.SAXException;
 
 /**
  * @author Miguel Ledesma Palacios
+ * @version 2.0
+ * @since 2021 
  */
 public class MeteoDuinoReader {
     
     // Servidor al que conectarse para recoger datos
     
     static String cadenaXML="";            // Cadena para guardar el XML
-
+    static String url = "https://www.meteoclimatic.net/perfil/ESAND2300000023700C";
+    
     // Variables para guardar los datos de la meteorológica
     static String hora;
     static int fecha;
@@ -46,8 +49,7 @@ public class MeteoDuinoReader {
     public String ipMeteo;
     
     // Variables para guardar los datos de la meteorológica
-    
-    
+       
     
     /**
      * @param args the command line arguments
@@ -64,12 +66,15 @@ public class MeteoDuinoReader {
         recogerDatosWeb();
         leerDatos();
         
+        Scraper scraper = new Scraper(url);
+        LecturaEXT lectura2 = scraper.leerDatos();
         
         Lectura lectura1 = new Lectura(Float.parseFloat(temperatura1), Float.parseFloat(temperatura2), Float.parseFloat(sensacionTermica), Integer.parseInt(humedad),
-                Float.parseFloat(altura), Integer.parseInt(presion), Integer.parseInt(presionMar), fecha);
+        Float.parseFloat(altura), Integer.parseInt(presion), Integer.parseInt(presionMar), fecha);
         
         Conexion.guardaDatos(lectura1);
-          
+        Conexion.guardaDatosEXT(lectura2);
+                
         System.out.println(lectura1.toString());
         
 
@@ -85,17 +90,18 @@ public class MeteoDuinoReader {
      */
     static void recogerDatosWeb() throws IOException, ConnectException {
         try {
-            URL url = new URL(leeIPMeteo());   // URL Conexión a la meteorológica ESP8266
+            @SuppressWarnings("deprecation")
+            URL url_connect = new URL(leeIPMeteo());   // URL Conexión a la meteorológica ESP8266
             String inputText = ""; 
             
-            BufferedReader in = new BufferedReader(new InputStreamReader(url.openStream()));
+            BufferedReader in = new BufferedReader(new InputStreamReader(url_connect.openStream()));
     
             while (null != (inputText = in.readLine())) {     // Guarda la web (XML) en una cadena para manejarla posteriormente
                 cadenaXML = cadenaXML + inputText;
             }
         } catch (ConnectException e) {
             System.out.println("ERROR DE CONEXIÓN");        
-        } catch (Exception e) {
+        } catch (IOException e) {
             System.out.println(e);
         }
         
@@ -204,7 +210,7 @@ public class MeteoDuinoReader {
      */
     protected static String leeIPMeteo() throws FileNotFoundException {
         
-        String rutaConfig = "etc/meteo.conf";
+        String rutaConfig = "/etc/meteo.conf";
         
         String regex="[\\d]+.[\\d]+.[\\d]+.[\\d]+";
         
@@ -325,6 +331,26 @@ class Conexion {
         st.executeUpdate(insertSQL);
         
     } // END guardaDatos()
+
+    /**
+     * Método para guardar los datos en la base de datos
+     * @param lectura1
+     * @throws SQLException
+     * @throws ClassNotFoundException
+     */
+    protected static void guardaDatosEXT(LecturaEXT lectura) throws SQLException, ClassNotFoundException {
+        
+        conectar();
+        
+        String insertSQL ="INSERT INTO datosEXT (epochTime, fecha, hora, temperatura, humedad, presion, radiacion_solar, velocidad_viento, orientacion_viento, precipitacion, precipitacion_dias) VALUES ";
+        insertSQL += "(" + lectura.getEpochTime() + ", '"+lectura.getFecha()+"', '"+lectura.getHora()+"', "+lectura.getTemperatura()+", "+lectura.getHumedad();
+        insertSQL += ", " + lectura.getPresion() + ", " + lectura.getRadiacion_solar() + ", " + lectura.getVelocidad_viento() + ", '" + lectura.getOrientacion_viento();
+        insertSQL += "', " + lectura.getPrecipitacion() + ", " + lectura.getPrecipitacion_dia()+")";
+        
+        st.executeUpdate(insertSQL);
+        
+    } // END guardaDatos()
+    
     
     
     
