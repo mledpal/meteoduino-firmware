@@ -67,18 +67,29 @@ public class MeteoDuinoReader {
         leerDatos();
         
         // Lectura y guardado de datos de la meteorológica externa
-        Scraper scraper = new Scraper(url);
-        LecturaEXT lectura2 = scraper.leerDatos();
-        Conexion.guardaDatosEXT(lectura2);
+        try {
+            Scraper scraper = new Scraper(url);
+            LecturaEXT lectura2 = scraper.leerDatos();
+            Conexion.guardaDatosEXT(lectura2);
+        } catch (IOException e) {
+            System.out.println("Error al leer los datos de la meteorológica externa");
+        }
+        
         
         // Lectura y guardado de datos de la meteorológica ESP8266
-        Lectura lectura1 = new Lectura(Float.parseFloat(temperatura1), Float.parseFloat(temperatura2), Float.parseFloat(sensacionTermica), Integer.parseInt(humedad),
-        Float.parseFloat(altura), Integer.parseInt(presion), Integer.parseInt(presionMar), fecha);        
-        Conexion.guardaDatos(lectura1);
-        
-                
-        System.out.println(lectura1.toString());
-        
+        try {
+            Lectura lectura1 = new Lectura(Float.parseFloat(temperatura1), Float.parseFloat(temperatura2), Float.parseFloat(sensacionTermica), Integer.parseInt(humedad),
+            Float.parseFloat(altura), Integer.parseInt(presion), Integer.parseInt(presionMar), fecha);        
+            Conexion.guardaDatos(lectura1);           
+                    
+            System.out.println(lectura1.toString());
+        } catch (NumberFormatException e) {
+            System.out.println("Error al leer los datos de la meteorológica ESP8266");
+        } catch (SQLException e) {
+            System.out.println("Error al guardar los datos en la BBDD");
+        } catch (ClassNotFoundException e) {
+            System.out.println("Error al conectar a la BBDD");
+        }          
 
     }
     
