@@ -66,14 +66,16 @@ public class MeteoDuinoReader {
         recogerDatosWeb();
         leerDatos();
         
+        // Lectura y guardado de datos de la meteorológica externa
         Scraper scraper = new Scraper(url);
         LecturaEXT lectura2 = scraper.leerDatos();
-        
-        Lectura lectura1 = new Lectura(Float.parseFloat(temperatura1), Float.parseFloat(temperatura2), Float.parseFloat(sensacionTermica), Integer.parseInt(humedad),
-        Float.parseFloat(altura), Integer.parseInt(presion), Integer.parseInt(presionMar), fecha);
-        
-        Conexion.guardaDatos(lectura1);
         Conexion.guardaDatosEXT(lectura2);
+        
+        // Lectura y guardado de datos de la meteorológica ESP8266
+        Lectura lectura1 = new Lectura(Float.parseFloat(temperatura1), Float.parseFloat(temperatura2), Float.parseFloat(sensacionTermica), Integer.parseInt(humedad),
+        Float.parseFloat(altura), Integer.parseInt(presion), Integer.parseInt(presionMar), fecha);        
+        Conexion.guardaDatos(lectura1);
+        
                 
         System.out.println(lectura1.toString());
         
