@@ -5,18 +5,17 @@
 #include <ESP8266HTTPClient.h>
 #include <ESP8266mDNS.h>
 #include <WiFiClientSecure.h>
-#include <Adafruit_BMP280.h> // Nuevo HW-611 // BMP280 // Sensor de Presión
-#include "SHT2x.h" // Nuevos sensores de Humedad y Presión GY-21
-#include <ArduinoJson.h> // Librería para JSON
+#include <Adafruit_BMP280.h>  // Nuevo HW-611 // BMP280 // Sensor de Presión
+#include "SHT2x.h"            // Nuevos sensores de Humedad y Presión GY-21
+#include <ArduinoJson.h>      // Librería para JSON
 #include <Wire.h>
-#include <Discord_WebHook.h>
 
 // #include <DHT.h> // DEPRECATED // SENSOR DE HUMEDAD Y TEMPERATURA (Carcasa azul)
 
 
-#ifndef STASSID                     // Conexión a la WIFI
-#define STASSID "meteoduino"        // ESSID de tu WIFI
-#define STAPSK  "LTZ3ZNKF2YYYZN"    // KEY de tu WIFI
+#ifndef STASSID                  // Conexión a la WIFI
+#define STASSID "meteoduino"     // ESSID de tu WIFI
+#define STAPSK "LTZ3ZNKF2YYYZN"  // KEY de tu WIFI
 #endif
 
 
@@ -26,28 +25,28 @@ const int METEO_ID = 1;
 uint32_t start;
 uint32_t stop;
 SHT2x sht;
-// SENSOR DE HUMEDAD Y TEMPERATURA 
+// SENSOR DE HUMEDAD Y TEMPERATURA
 
 const char* ssid = STASSID;
 const char* password = STAPSK;
 
 
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "0.es.pool.ntp.org", 3600); // Servidor NTP España
-int timeZone = 2; // Zona horaria de España
+NTPClient timeClient(ntpUDP, "0.es.pool.ntp.org", 3600);  // Servidor NTP España
+int timeZone = 2;                                         // Zona horaria de España
 
-unsigned long epochTime = timeClient.getEpochTime();    
+unsigned long epochTime = timeClient.getEpochTime();
 String hora = String(timeClient.getFormattedTime());
 
 
 ESP8266WebServer server(80);
 
-Adafruit_BMP280 bmp; // use I2C interface
-Adafruit_Sensor *bmp_temp = bmp.getTemperatureSensor();
-Adafruit_Sensor *bmp_pressure = bmp.getPressureSensor();
+Adafruit_BMP280 bmp;  // use I2C interface
+Adafruit_Sensor* bmp_temp = bmp.getTemperatureSensor();
+Adafruit_Sensor* bmp_pressure = bmp.getPressureSensor();
 
 
-#define ALTITUDE  416.0 // metros 
+#define ALTITUDE 416.0  // metros
 
 //uint8_t DHTPin = 2; // DEPRECATED
 //#define DHTTYPE DHT11
@@ -59,12 +58,12 @@ float datos[7];
 
 float temp1, temp2, sensacionTermica, humedad, presion, nivelMar, altura;
 
-// Para el envío a Discord
-const String discord_webhook = "https://discord.com/api/webhooks/995371444961804490/kZZOPXQXdub5lNdA4j4LUv7xgWDGJtpZNqxwonphQb2yjIWBNf55TKA5hCOHCaz8sC8l";
-Discord_Webhook discord;
-String mensaje; 
 
-//String hora;
+// Medición de Voltaje de Batería
+const int analogPin = A0;  // Pin analógico del ESP8266
+float voltageBattery = 0.0;
+float R1 = 12000.0;  // Resistencia R1 en ohmios
+float R2 = 26500.0;   // Resistencia R2 en ohmios
 
 
 //////////// SETUP ////////////
@@ -72,12 +71,12 @@ String mensaje;
 void setup() {
 
   Serial.begin(9600);
-  
+
   // Ajusta la fecha y hora
   actualizarNTP();
 
   // Configuracion del sensor de Presión y Temperatura BMP280
-  if(bmp.begin(0x76)){
+  if (bmp.begin(0x76)) {
     Serial.println("Sensor Iniciado correctamente");
   } else {
     Serial.println("El sensor de humedad tiene problemas");
@@ -93,7 +92,7 @@ void setup() {
   // SENSOR DE HUMEDAD
   //dht.begin(); // DEPRECATED
 
-// NUEVO SENSOR DE TEMPERATURA SHT20
+  // NUEVO SENSOR DE TEMPERATURA SHT20
   sht.begin();
   uint8_t stat = sht.getStatus();
   Serial.print(stat, HEX);
@@ -134,24 +133,23 @@ void setup() {
   server.on("/", handleRoot);
   server.on("/meteo.html", HTTP_GET, handleTemp);
   server.on("/datos.json", HTTP_GET, APIJSON);
-  server.on("/discord", HTTP_GET, send_discord);
   server.onNotFound(handleNotFound);
 
 
 
   ///////////////////////////////////////////////////////// HOOKS
-  
-  server.addHook([](const String & method, const String & url, WiFiClient * client, ESP8266WebServer::ContentTypeFunction contentType) {
-    (void)method;      // GET, PUT, ...
-    (void)url;         // example: /root/myfile.html
-    (void)client;      // the webserver tcp client connection
-    (void)contentType; // contentType(".html") => "text/html"
+
+  server.addHook([](const String& method, const String& url, WiFiClient* client, ESP8266WebServer::ContentTypeFunction contentType) {
+    (void)method;       // GET, PUT, ...
+    (void)url;          // example: /root/myfile.html
+    (void)client;       // the webserver tcp client connection
+    (void)contentType;  // contentType(".html") => "text/html"
     Serial.printf("A useless web hook has passed\n");
     Serial.printf("(this hook is in 0x%08x area (401x=IRAM 402x=FLASH))\n", esp_get_program_counter());
     return ESP8266WebServer::CLIENT_REQUEST_CAN_CONTINUE;
   });
 
-  server.addHook([](const String&, const String & url, WiFiClient*, ESP8266WebServer::ContentTypeFunction) {
+  server.addHook([](const String&, const String& url, WiFiClient*, ESP8266WebServer::ContentTypeFunction) {
     if (url.startsWith("/fail")) {
       Serial.printf("An always failing web hook has been triggered\n");
       return ESP8266WebServer::CLIENT_MUST_STOP;
@@ -159,7 +157,7 @@ void setup() {
     return ESP8266WebServer::CLIENT_REQUEST_CAN_CONTINUE;
   });
 
-  server.addHook([](const String&, const String & url, WiFiClient * client, ESP8266WebServer::ContentTypeFunction) {
+  server.addHook([](const String&, const String& url, WiFiClient* client, ESP8266WebServer::ContentTypeFunction) {
     if (url.startsWith("/dump")) {
       Serial.printf("The dumper web hook is on the run\n");
 
@@ -189,7 +187,7 @@ void setup() {
       // check the client connection: it should not immediately be closed
       // (make another '/dump' one to close the first)
       Serial.printf("\nTelling server to forget this connection\n");
-      static WiFiClient forgetme = *client; // stop previous one if present and transfer client refcounter
+      static WiFiClient forgetme = *client;  // stop previous one if present and transfer client refcounter
       return ESP8266WebServer::CLIENT_IS_GIVEN;
     }
     return ESP8266WebServer::CLIENT_REQUEST_CAN_CONTINUE;
@@ -203,7 +201,6 @@ void setup() {
 
   server.begin();
   Serial.println("HTTP server started");
-
 }
 
 
@@ -215,11 +212,12 @@ void loop(void) {
 
   int minutos = timeClient.getMinutes();
   int seg = timeClient.getSeconds();
-
-  if ((minutos==0 || minutos==15 || minutos==30 || minutos==45) && seg==0) {
-    send_discord();
+  
+  if (seg % 5 == 0) {
+    Serial.println(estadoBateria());
   }
-  delay(750);
+
+  delay(1000);
 }
 
 
@@ -227,19 +225,19 @@ void loop(void) {
 // MANEJADORES DE LINKS
 
 void jsonURL() {
-  leerDatos();  
+  leerDatos();
 }
 
 void handleRoot() {
-  
+
   digitalWrite(led, 1);
 
   leerDatos();
-  send_discord();
- 
+  float batt = estadoBateria();
+
   String xml = "<?xml version='1.0' encoding='UTF-8'?>\r\n";
-  
-  xml += "<meteorologica id='" +String(METEO_ID) + "'>\r\n";
+
+  xml += "<meteorologica id='" + String(METEO_ID) + "'>\r\n";
   xml += "\t<fecha>" + String(epochTime) + "</fecha>\r\n";
   xml += "\t<hora>" + hora + "</hora>\r\n";
   xml += "\t<temperaturas media='" + String((temp1 + temp2) / 2) + "' sensacion='" + String(sensacionTermica, 2) + "' unidad ='ºC' >\r\n";
@@ -251,10 +249,9 @@ void handleRoot() {
   xml += "\t\t<mar>" + String(nivelMar, 0) + "</mar>\r\n";
   xml += "\t</presion>\r\n";
   xml += "\t<humedad>" + String(humedad, 0) + "</humedad>\r\n";
+  xml += "\t<bateria>" + String(batt, 0) + "</bateria>\r\n";
   xml += "</meteorologica>\r\n";
 
-
-  //Serial.println(mensaje_discord);
 
   server.send(200, "text/xml", xml);
   digitalWrite(led, 0);
@@ -264,12 +261,12 @@ void handleRoot() {
 ////////////////////////////////////////////////
 // Función que manda los datos en formato XML //
 ////////////////////////////////////////////////
-void handleTemp() { // Ruta /meteo
+void handleTemp() {  // Ruta /meteo
 
   leerDatos();
-  
+
   String cadena = "<!DOCTYPE html>";
-  
+
   cadena += "<html lang='es'>";
   cadena += "<head>";
   cadena += "<meta charset='UTF-8'>";
@@ -286,17 +283,17 @@ void handleTemp() { // Ruta /meteo
   cadena += "<tr><th>Temperatura 1</th><th>Temperatura 2</th><th>Temperatura Media</th><th>Sensación Térmica</th><th>Presión</th><th>Humedad</th><th>Altura Real</th></tr>";
   cadena += "<tr><td>" + String(temp1) + " ºC </td>";
   cadena += "<td>" + String(temp2) + " ºC </td>";
-  cadena += "<td>" + String((temp1+temp2)/2) + " ºC</td>";
+  cadena += "<td>" + String((temp1 + temp2) / 2) + " ºC</td>";
   cadena += "<td>" + String(sensacionTermica) + " ºC </td>";
   cadena += "<td>" + String(presion) + " Pa </td>";
   cadena += "<td>" + String(humedad) + " % </td>";
   cadena += "<td>" + String(altura) + " m. </td>";
+  cadena += "<td>" + String(estadoBateria()) + " V </td>";
   cadena += "</tr></table>";
   cadena += "</body></html>";
 
   server.send(200, "text/html", cadena);
   digitalWrite(led, 0);
-
 }
 
 void handleNotFound() {
@@ -321,86 +318,62 @@ void handleNotFound() {
 // Función que manda los datos en formato JSON //
 /////////////////////////////////////////////////
 void APIJSON() {
-
   leerDatos();
 
-  StaticJsonDocument<512> doc;
+  JsonDocument doc;  // Esto no está estrictamente mal, pero se puede ignorar el warning
   char json_string[512];
-  
+
   doc["id"] = METEO_ID;
-  
-  JsonArray datetime = doc.createNestedArray("datetime");
-  JsonArray temps = doc.createNestedArray("temp");
-  JsonArray pressure = doc.createNestedArray("pressure");
-  JsonArray humidity = doc.createNestedArray("humidity");
-  
-  doc["datetime"][0] = epochTime;
-  doc["datetime"][1] = hora;  
-    
-  doc["temp"][0] = temp1;
-  doc["temp"][1] = temp2;
-  doc["temp"][2] = sensacionTermica;
-  
-  doc["pressure"][0] = nivelMar;
-  doc["pressure"][1] = presion;
-  doc["pressure"][2] = altura;
-  
-  doc["humidity"][0] = humedad;
-  
+
+  // Crear arreglos anidados usando la sintaxis moderna
+  JsonArray datetime = doc["datetime"].to<JsonArray>();
+  JsonArray temps = doc["temp"].to<JsonArray>();
+  JsonArray pressure = doc["pressure"].to<JsonArray>();
+  JsonArray humidity = doc["humidity"].to<JsonArray>();
+  JsonArray battery = doc["battery"].to<JsonArray>();
+
+  // Asignar valores a los arreglos
+  datetime.add(epochTime);
+  datetime.add(hora);
+
+  temps.add(temp1);
+  temps.add(temp2);
+  temps.add(sensacionTermica);
+
+  pressure.add(nivelMar);
+  pressure.add(presion);
+  pressure.add(altura);
+
+  humidity.add(humedad);
+
+  battery.add(estadoBateria());
+
+  // Serializar JSON
   serializeJson(doc, json_string);
   server.send(200, "application/json", json_string);
 }
-
-
-/////////////////////////////////////////////////////
-// Función que manda los datos al canal de Discord //
-/////////////////////////////////////////////////////
-void send_discord() {
-  
-  hora = String(timeClient.getFormattedTime());
-
-  //leerDatos();
-  
-  mensaje = "[ Hora: "+ hora +" ] ";
-  mensaje += " [ ID: " + String(METEO_ID) + " ] ";
-  mensaje +="[ T1: "+String(temp1, 2)+" ºC | T2: " + String(temp2, 2)+ " ºC | ST : " + String(sensacionTermica, 2)+" ºC | TM: " + String(((temp1 + temp2) / 2), 2) + " ºC ] ";
-  mensaje +=" [ H: " + String(humedad, 0) + "% ]";
-  mensaje +=" [ P: " + String(presion, 0) + " Pa ] ";
-  mensaje +=" [ A: " + String(altura, 2) + " m ] ";
-
-  //Serial.println(mensaje);
-  
-  discord.begin(discord_webhook);
-  discord.send(mensaje);
-  
-  Serial.println("Send data to Discord: OK");
-  //server.send(200, "text/plain", "OK");
-}
-
-
 
 ///////////////////////////////////////////////
 // Función que lee los datos de los sensores //
 ///////////////////////////////////////////////
 void leerDatos() {
 
-  actualizarNTP(); // Actualiza datos del servidor NTP y los datos de fecha y hora
+  actualizarNTP();  // Actualiza datos del servidor NTP y los datos de fecha y hora
 
-  // NUEVO SENSOR DE TEMPERATURA  
+  // NUEVO SENSOR DE TEMPERATURA
   sht.read();
   temp2 = sht.getTemperature();
   humedad = sht.getHumidity();
 
-  if(humedad < 0) humedad = 0;
-  
+  if (humedad < 0) humedad = 0;
+
   sensacionTermica = computeHeatIndex(temp2, humedad, false);
 
   temp1 = bmp.readTemperature();
-  presion = bmp.readPressure()/100;
-  
+  presion = bmp.readPressure() / 100;
+
   nivelMar = bmp.seaLevelForAltitude(ALTITUDE, presion);
   altura = bmp.readAltitude(1013.25);
-
 }
 
 //////////////////////////////////////////////
@@ -412,25 +385,15 @@ float computeHeatIndex(float temperature, float percentHumidity, bool isFahrenhe
   if (!isFahrenheit)
     temperature = convertCtoF(temperature);
 
-  hi = 0.5 * (temperature + 61.0 + ((temperature - 68.0) * 1.2) +
-              (percentHumidity * 0.094));
+  hi = 0.5 * (temperature + 61.0 + ((temperature - 68.0) * 1.2) + (percentHumidity * 0.094));
 
   if (hi > 79) {
-    hi = -42.379 + 2.04901523 * temperature + 10.14333127 * percentHumidity +
-         -0.22475541 * temperature * percentHumidity +
-         -0.00683783 * pow(temperature, 2) +
-         -0.05481717 * pow(percentHumidity, 2) +
-         0.00122874 * pow(temperature, 2) * percentHumidity +
-         0.00085282 * temperature * pow(percentHumidity, 2) +
-         -0.00000199 * pow(temperature, 2) * pow(percentHumidity, 2);
+    hi = -42.379 + 2.04901523 * temperature + 10.14333127 * percentHumidity + -0.22475541 * temperature * percentHumidity + -0.00683783 * pow(temperature, 2) + -0.05481717 * pow(percentHumidity, 2) + 0.00122874 * pow(temperature, 2) * percentHumidity + 0.00085282 * temperature * pow(percentHumidity, 2) + -0.00000199 * pow(temperature, 2) * pow(percentHumidity, 2);
 
-    if ((percentHumidity < 13) && (temperature >= 80.0) &&
-        (temperature <= 112.0))
-      hi -= ((13.0 - percentHumidity) * 0.25) *
-            sqrt((17.0 - abs(temperature - 95.0)) * 0.05882);
+    if ((percentHumidity < 13) && (temperature >= 80.0) && (temperature <= 112.0))
+      hi -= ((13.0 - percentHumidity) * 0.25) * sqrt((17.0 - abs(temperature - 95.0)) * 0.05882);
 
-    else if ((percentHumidity > 85.0) && (temperature >= 80.0) &&
-             (temperature <= 87.0))
+    else if ((percentHumidity > 85.0) && (temperature >= 80.0) && (temperature <= 87.0))
       hi += ((percentHumidity - 85.0) * 0.1) * ((87.0 - temperature) * 0.2);
   }
 
@@ -441,8 +404,12 @@ float computeHeatIndex(float temperature, float percentHumidity, bool isFahrenhe
 /////////////////////////////////////////
 // Funciones para convertir de ºC a ºF //
 /////////////////////////////////////////
-float convertCtoF(float c) { return c * 1.8 + 32; }
-float convertFtoC(float f) { return (f - 32) * 0.55555; }
+float convertCtoF(float c) {
+  return c * 1.8 + 32;
+}
+float convertFtoC(float f) {
+  return (f - 32) * 0.55555;
+}
 
 
 ///////////////////////////////////////////
@@ -451,12 +418,12 @@ float convertFtoC(float f) { return (f - 32) * 0.55555; }
 
 void actualizarNTP() {
 
-  timeClient.setTimeOffset(isSummerTime() * 3600); 
+  timeClient.setTimeOffset(isSummerTime() * 3600);
   timeClient.update();
-  
-  epochTime = timeClient.getEpochTime();    
-  hora = String(timeClient.getFormattedTime());  
-  
+
+  epochTime = timeClient.getEpochTime();
+  hora = String(timeClient.getFormattedTime());
+
   Serial.println("Cliente NTP actualizado");
 }
 
@@ -464,7 +431,7 @@ void actualizarNTP() {
 
 int isSummerTime() {
   // Obtiene la fecha actual en formato "AAAAMMDD" (Año, Mes, Día)
-  
+
   String formattedDate = timeClient.getFormattedTime();
   int year = formattedDate.substring(0, 4).toInt();
   int month = formattedDate.substring(5, 7).toInt();
@@ -472,8 +439,23 @@ int isSummerTime() {
 
   // Comprueba si la fecha actual está dentro del rango del horario de verano en España
   if ((month > 3 && month < 10) || (month == 3 && day >= 25) || (month == 10 && day <= 28)) {
-    return 2; // Está en horario de verano (UTC +2)
+    return 2;  // Está en horario de verano (UTC +2)
   } else {
-    return 2; // Está en horario estándar (UTC +1)
+    return 2;  // Está en horario estándar (UTC +1)
   }
+}
+
+float estadoBateria() {
+  int rawADC = analogRead(analogPin);          // Leer ADC (0-1023)
+  float voltageADC = (rawADC / 1023.0) * 3.3;  // Convertir a voltaje (0-3.3V)
+  float correccion = 1.3;
+
+  // Ajustar el voltaje de acuerdo con la relación de medición
+  voltageADC = voltageADC * correccion; // Factor de corrección
+
+  // Calcular el voltaje de la batería
+  voltageBattery = voltageADC * ((R1 + R2) / R2);
+  Serial.print("Valor ADC0 : ");
+  Serial.println(rawADC);
+  return voltageADC;
 }
