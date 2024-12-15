@@ -19,10 +19,11 @@ public class Lectura {
     private final float altura;
     private final int presion;
     private final int presion_mar;
+    private final float bateria;
     
     private final int fecha;
     
-    public Lectura (float temp1, float temp2, float sensacion, int humedad, float altura, int presion, int presion_mar, int fecha) {
+    public Lectura (float temp1, float temp2, float sensacion, int humedad, float altura, int presion, int presion_mar, float bateria, int fecha) {
         
         this.altura = altura;
         this.fecha = fecha;
@@ -31,9 +32,8 @@ public class Lectura {
         this.presion_mar = presion_mar;
         this.sensacion = sensacion;
         this.temp1 = temp1;
-        this.temp2 = temp2;        
-        
-        
+        this.temp2 = temp2;       
+        this.bateria = bateria;
     }
     
     
@@ -67,6 +67,10 @@ public class Lectura {
     
     public float getAltura() {
         return this.altura;
+    }
+    
+    public float getBateria() {
+        return this.bateria;
     }
     
     public String getHora() {
@@ -121,8 +125,9 @@ public class Lectura {
         
         String cadena="";
         cadena+="T1: "+temp1+" | T2: "+temp2+" | ST: "+sensacion;
-        cadena+=" | H: "+ humedad+ " | PR: " + presion + " | PNM: " + presion_mar;
-        cadena+=" | ALT: "+ altura;
+        cadena+=" | H: " + humedad+ " | PR: " + presion + " | PNM: " + presion_mar;
+        cadena+=" | ALT: " + altura;
+        cadena+=" | BATT: " + bateria;
         cadena+=" | Epoch: " + fecha;
         
         return cadena;

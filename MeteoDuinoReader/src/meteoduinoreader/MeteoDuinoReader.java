@@ -46,7 +46,9 @@ public class MeteoDuinoReader {
     static String temperatura1, temperatura2, temperaturaMedia, sensacionTermica;
     static String presion, altura, presionMar;
     static String humedad;
+    static String bateria;
     public String ipMeteo;
+    
     
     // Variables para guardar los datos de la meteorológica
        
@@ -79,7 +81,7 @@ public class MeteoDuinoReader {
         // Lectura y guardado de datos de la meteorológica ESP8266
         try {
             Lectura lectura1 = new Lectura(Float.parseFloat(temperatura1), Float.parseFloat(temperatura2), Float.parseFloat(sensacionTermica), Integer.parseInt(humedad),
-            Float.parseFloat(altura), Integer.parseInt(presion), Integer.parseInt(presionMar), fecha);        
+            Float.parseFloat(altura), Integer.parseInt(presion), Integer.parseInt(presionMar), Float.parseFloat(bateria), fecha);        
             Conexion.guardaDatos(lectura1);           
                     
             System.out.println(lectura1.toString());
@@ -183,7 +185,10 @@ public class MeteoDuinoReader {
                 NodeList humedadElemento = primerElemento.getElementsByTagName("humedad");
                 String humedadRAW = humedadElemento.item(0).getTextContent();
                 humedad = humedadRAW.replace(" ", "");
-
+                
+                NodeList bateriaElemento = primerElemento.getElementsByTagName("bateria");
+                String bateriaRAW = bateriaElemento.item(0).getTextContent();
+                bateria = bateriaRAW.replace(" ", "");
             }
         }
         
@@ -211,7 +216,8 @@ public class MeteoDuinoReader {
          System.out.println("Altura Relativa : " + altura);
          System.out.println("Presion Local : " + presion);
          System.out.println("Presion Nivel Mar : " + presionMar);
-         System.out.println("Humedad Relativa : " + humedad + " %");        
+         System.out.println("Humedad Relativa : " + humedad + " %");      
+         System.out.println("Batería : " + bateria + "V");
         
     } 
     
@@ -335,10 +341,10 @@ class Conexion {
         
         conectar();
         
-        String insertSQL ="INSERT INTO datos (epochTime, fecha, hora, sensor1, sensor2, t_sens, t_media, p_local, p_mar, altura, humedad) VALUES ";
+        String insertSQL ="INSERT INTO datos (epochTime, fecha, hora, sensor1, sensor2, t_sens, t_media, p_local, p_mar, altura, humedad, bateria) VALUES ";
         insertSQL += "(" + lectura1.getEpochTime() + ", '"+lectura1.getFecha()+"', '"+lectura1.getHora()+"', "+lectura1.getSensor1()+", "+lectura1.getSensor2();
         insertSQL += ", " + lectura1.getSTermica()+ ", " + lectura1.getTMedia() + ", " + lectura1.getPresion()+ ", " + lectura1.getPresionMar();
-        insertSQL += ", " + lectura1.getAltura() + ", " + lectura1.getHumedad()+")";
+        insertSQL += ", " + lectura1.getAltura() + ", " + lectura1.getHumedad()+ ", "+ lectura1.getBateria() + ")";
                
         
         st.executeUpdate(insertSQL);
